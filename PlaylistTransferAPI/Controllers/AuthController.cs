@@ -25,8 +25,8 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var clientId = _configuration["Spotify:ClientId"];
-            var redirectUri = _configuration["Spotify:RedirectUri"];
+            var clientId = _configuration["SPOTIFY_CLIENT_ID"];
+            var redirectUri = "https://tunesync.onrender.com/auth/spotify/callback";
             var state = Guid.NewGuid().ToString("N")[..16]; // CSRF protection
 
             if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(redirectUri))
@@ -64,8 +64,8 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var clientId = _configuration["YouTube:ClientId"];
-            var redirectUri = _configuration["YouTube:RedirectUri"];
+            var clientId = _configuration["YOUTUBE_CLIENT_ID"];
+            var redirectUri = "https://tunesync.onrender.com/auth/youtube/callback";
             var state = Guid.NewGuid().ToString("N")[..16]; // CSRF protection
 
             if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(redirectUri))
@@ -198,9 +198,9 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var clientId = _configuration["Spotify:ClientId"];
-            var clientSecret = _configuration["Spotify:ClientSecret"];
-            var redirectUri = _configuration["Spotify:RedirectUri"];
+            var clientId = _configuration["SPOTIFY_CLIENT_ID"];
+            var clientSecret = _configuration["SPOTIFY_CLIENT_SECRET"];
+            var redirectUri = "https://tunesync.onrender.com/auth/spotify/callback";
 
             using var httpClient = new HttpClient();
             
@@ -244,9 +244,9 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var clientId = _configuration["YouTube:ClientId"];
-            var clientSecret = _configuration["YouTube:ClientSecret"];
-            var redirectUri = _configuration["YouTube:RedirectUri"];
+            var clientId = _configuration["YOUTUBE_CLIENT_ID"];
+            var clientSecret = _configuration["YOUTUBE_CLIENT_SECRET"];
+            var redirectUri = "https://tunesync.onrender.com/auth/youtube/callback";
 
             using var httpClient = new HttpClient();
             
