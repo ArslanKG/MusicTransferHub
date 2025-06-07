@@ -1,0 +1,49 @@
+# Dockerfile and .dockerignore itself
+Dockerfile*
+.dockerignore
+
+# Documentation
+README.md
+API_KEYS_GUIDE.md
+
+# Git
+.git
+.gitignore
+
+# VS Code
+.vscode
+
+# Binaries
+bin/
+obj/
+
+# NuGet packages
+*.nupkg
+
+# User secrets
+appsettings.Development.json
+appsettings.Local.json
+
+# Logs
+logs/
+*.log
+
+# Database files (for production)
+*.db
+*.db-shm
+*.db-wal
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE
+*.swp
+*.swo
+*~
+
+# Node modules (if any)
+node_modules/
+
+# Build artifacts
+publish/

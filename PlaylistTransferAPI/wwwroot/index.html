@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify to YouTube Music Playlist Transfer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #1DB954 0%, #FF0000 100%);
+            min-height: 100vh;
+        }
+        .card-custom {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+        .btn-spotify {
+            background: #1DB954;
+            border-color: #1DB954;
+            color: white;
+        }
+        .btn-spotify:hover {
+            background: #1ed760;
+            border-color: #1ed760;
+            color: white;
+        }
+        .btn-youtube {
+            background: #FF0000;
+            border-color: #FF0000;
+            color: white;
+        }
+        .btn-youtube:hover {
+            background: #ff1a1a;
+            border-color: #ff1a1a;
+            color: white;
+        }
+        .status-badge {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+        }
+        .playlist-card {
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+        .playlist-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="gradient-bg">
+        <div class="container py-5">
+            <div class="row justify-content-center">
+                <div class="col-md-10">
+                    <div class="card card-custom">
+                        <div class="card-body p-5">
+                            <div class="text-center mb-5">
+                                <h1 class="display-4 fw-bold mb-3">
+                                    <i class="bi bi-music-note-list text-success"></i>
+                                    Playlist Transfer
+                                </h1>
+                                <p class="lead text-muted">
+                                    Spotify playlist'lerinizi YouTube Music'e kolayca transfer edin
+                                </p>
+                            </div>
+
+                            <!-- Authentication Section -->
+                            <div class="row mb-5">
+                                <div class="col-md-6">
+                                    <div class="card h-100">
+                                        <div class="card-body text-center">
+                                            <i class="bi bi-spotify fs-1 text-success mb-3"></i>
+                                            <h5>Spotify</h5>
+                                            <p class="text-muted small">Playlist'lerinizi almak için giriş yapın</p>
+                                            <button id="spotifyLogin" class="btn btn-spotify btn-sm">
+                                                <i class="bi bi-box-arrow-in-right"></i> Spotify'a Bağlan
+                                            </button>
+                                            <div id="spotifyStatus" class="mt-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card h-100">
+                                        <div class="card-body text-center">
+                                            <i class="bi bi-youtube fs-1 text-danger mb-3"></i>
+                                            <h5>YouTube Music</h5>
+                                            <p class="text-muted small">Playlist oluşturmak için giriş yapın</p>
+                                            <button id="youtubeLogin" class="btn btn-youtube btn-sm">
+                                                <i class="bi bi-box-arrow-in-right"></i> YouTube'a Bağlan
+                                            </button>
+                                            <div id="youtubeStatus" class="mt-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Playlist Selection -->
+                            <div id="playlistSection" class="d-none">
+                                <h4 class="mb-4">
+                                    <i class="bi bi-list-ul"></i> Spotify Playlist'leriniz
+                                </h4>
+                                <div id="playlistList" class="row g-3 mb-4">
+                                    <!-- Playlists will be loaded here -->
+                                </div>
+                            </div>
+
+                            <!-- Transfer Form -->
+                            <div id="transferSection" class="d-none">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h5 class="card-title">
+                                            <i class="bi bi-arrow-right-circle"></i> Transfer Ayarları
+                                        </h5>
+                                        <form id="transferForm">
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="playlistName" class="form-label">Yeni Playlist Adı</label>
+                                                    <input type="text" class="form-control" id="playlistName" required>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="playlistPrivacy" class="form-label">Gizlilik</label>
+                                                    <select class="form-control" id="playlistPrivacy">
+                                                        <option value="private">Özel</option>
+                                                        <option value="public">Herkese Açık</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="playlistDescription" class="form-label">Açıklama (İsteğe bağlı)</label>
+                                                <textarea class="form-control" id="playlistDescription" rows="2"></textarea>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="bi bi-play-circle"></i> Transfer'i Başlat
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Progress Section -->
+                            <div id="progressSection" class="d-none mt-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">
+                                            <i class="bi bi-hourglass-split"></i> Transfer Durumu
+                                        </h5>
+                                        <div class="progress mb-3" style="height: 20px;">
+                                            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                                 role="progressbar" style="width: 0%"></div>
+                                        </div>
+                                        <div id="progressText" class="text-center text-muted">
+                                            Transfer başlatılıyor...
+                                        </div>
+                                        <div id="progressStats" class="row text-center mt-3">
+                                            <div class="col-md-4">
+                                                <div class="h4 text-primary" id="totalTracks">0</div>
+                                                <small class="text-muted">Toplam Şarkı</small>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="h4 text-success" id="successTracks">0</div>
+                                                <small class="text-muted">Başarılı</small>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="h4 text-danger" id="failedTracks">0</div>
+                                                <small class="text-muted">Başarısız</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Results Section -->
+                            <div id="resultsSection" class="d-none mt-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">
+                                            <i class="bi bi-check-circle"></i> Transfer Sonuçları
+                                        </h5>
+                                        <div id="resultsContent">
+                                            <!-- Results will be shown here -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Documentation Link -->
+    <div class="position-fixed bottom-0 end-0 p-3">
+        <a href="/swagger" target="_blank" class="btn btn-outline-dark btn-sm">
+            <i class="bi bi-code-slash"></i> API Docs
+        </a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
