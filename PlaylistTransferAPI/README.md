@@ -1,175 +1,289 @@
 # 🎵 TuneSync - Playlist Transfer API
 
-## 🚨 **GÜVENLİK UYARISI**
+A modern web application that transfers your Spotify playlists to YouTube Music seamlessly.
 
-**⚠️ Bu repository PUBLIC olarak GitHub'da tutulabilir, ancak:**
+## 🚨 **SECURITY NOTICE**
 
-- ✅ **appsettings.json** dosyasında API anahtarları boş bırakılmıştır
-- ✅ **.gitignore** hassas dosyaları ignore eder
-- ⚠️ **Production'da Environment Variables kullanın**
-- ⚠️ **API anahtarlarınızı asla commit etmeyin**
+**⚠️ This repository is safe for PUBLIC GitHub hosting:**
 
-### 📋 **Güvenli Deployment:**
-1. **Render.com Environment Variables** kullanarak API anahtarlarını ekleyin
-2. **Local development** için `.env` dosyası oluşturun (git'e eklenmez)
-3. **API anahtarları** sadece production ortamında environment variables olarak
+- ✅ **API keys are removed** from `appsettings.json`
+- ✅ **Sensitive files** are protected by `.gitignore`
+- ⚠️ **Use Environment Variables** in production
+- ⚠️ **Never commit API keys** to version control
+
+### 🔐 **Secure Deployment:**
+1. **Use Render.com Environment Variables** for API keys
+2. **Create `.env` file** for local development (git-ignored)
+3. **API keys** should only exist as environment variables in production
 
 ---
 
-Spotify playlist'lerinizi YouTube Music'e transfer eden web uygulaması.
+## 🚀 **Quick Deploy to Render.com**
 
-## 🚀 Render.com Deployment
-
-### 1. API Anahtarları Alma
+### 1. Get API Keys
 
 #### Spotify API
-1. [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)'a gidin
-2. Yeni uygulama oluşturun
-3. `Client ID` ve `Client Secret` alın
-4. Redirect URI: `https://tunesync.onrender.com/api/auth/spotify/callback`
+1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+2. Create a new application
+3. Get `Client ID` and `Client Secret`
+4. Add Redirect URI: `https://your-app.onrender.com/api/auth/spotify/callback`
 
 #### YouTube API
-1. [Google Cloud Console](https://console.cloud.google.com/)'a gidin
-2. Yeni proje oluşturun veya mevcut projeyi seçin
-3. YouTube Data API v3'ü etkinleştirin
-4. OAuth 2.0 Client ID oluşturun (Web application)
-5. API Key oluşturun
-6. Redirect URI: `https://tunesync.onrender.com/api/auth/youtube/callback`
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create new project or select existing one
+3. Enable YouTube Data API v3
+4. Create OAuth 2.0 Client ID (Web application)
+5. Create API Key
+6. Add Redirect URI: `https://your-app.onrender.com/api/auth/youtube/callback`
 
-### 2. Render.com Environment Variables
+### 2. Deploy on Render.com
 
-Dashboard → Environment bölümünde şu değişkenleri ayarlayın:
-
-```
-ASPNETCORE_ENVIRONMENT=Production
-ASPNETCORE_URLS=http://+:10000
-SPOTIFY_CLIENT_ID=your_spotify_client_id
-SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
-YOUTUBE_CLIENT_ID=your_youtube_client_id
-YOUTUBE_CLIENT_SECRET=your_youtube_client_secret
-YOUTUBE_API_KEY=your_youtube_api_key
-```
-
-### 3. Build & Deploy Ayarları
-
-- **Repository**: `https://github.com/ArslanKG/MusicTransferHub`
-- **Branch**: `main`
-- **Root Directory**: `PlaylistTransferAPI`
-- **Build Command**: `dotnet build`
-- **Start Command**: `dotnet PlaylistTransferAPI.dll`
-
-### 4. Dockerfile Kullanımı
-
-Render.com otomatik olarak `Dockerfile`'ı algılar ve kullanır.
-
-## 🛠️ Development
-
-### Local Development
+#### Environment Variables
+Set these in Render.com Dashboard → Environment:
 
 ```bash
-# Dependencies
-dotnet restore
+ASPNETCORE_ENVIRONMENT=Production
+ASPNETCORE_URLS=http://+:10000
 
-# Run application
-dotnet run
+Spotify__ClientId=your_spotify_client_id
+Spotify__ClientSecret=your_spotify_client_secret
+
+YouTube__ClientId=your_youtube_client_id
+YouTube__ClientSecret=your_youtube_client_secret
+YouTube__ApiKey=your_youtube_api_key
 ```
 
-Uygulama `http://localhost:5285` adresinde çalışacak.
+#### Build Settings
+- **Environment**: Docker
+- **Root Directory**: `PlaylistTransferAPI`
+- **Auto-Deploy**: Enabled
 
-### Environment Variables (Development)
+---
 
-Development için `appsettings.Development.json` kullanın:
+## 🛠️ **Local Development**
 
-```json
-{
-  "Spotify": {
-    "ClientId": "your_dev_spotify_client_id",
-    "RedirectUri": "http://localhost:5285/api/auth/spotify/callback"
-  },
-  "YouTube": {
-    "ClientId": "your_dev_youtube_client_id",
-    "RedirectUri": "http://localhost:5285/api/auth/youtube/callback"
-  }
-}
+### Prerequisites
+- .NET 9.0 SDK
+- Valid Spotify and YouTube API credentials
+
+### Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/ArslanKG/MusicTransferHub.git
+   cd tunesync/PlaylistTransferAPI
+   ```
+
+2. **Restore dependencies**
+   ```bash
+   dotnet restore
+   ```
+
+3. **Configure API keys**
+   
+   Create `appsettings.Development.json`:
+   ```json
+   {
+     "Spotify": {
+       "ClientId": "your_spotify_client_id",
+       "ClientSecret": "your_spotify_client_secret",
+       "RedirectUri": "http://localhost:5285/api/auth/spotify/callback"
+     },
+     "YouTube": {
+       "ClientId": "your_youtube_client_id",
+       "ClientSecret": "your_youtube_client_secret",
+       "ApiKey": "your_youtube_api_key",
+       "RedirectUri": "http://localhost:5285/api/auth/youtube/callback"
+     }
+   }
+   ```
+
+4. **Run the application**
+   ```bash
+   dotnet run
+   ```
+
+   The app will be available at `http://localhost:5285`
+
+---
+
+## ✨ **Features**
+
+- 🔐 **OAuth Authentication** - Secure login with Spotify and YouTube
+- 📋 **Playlist Management** - Browse and select playlists
+- 🎯 **Smart Matching** - Intelligent track matching algorithm
+- 📊 **Real-time Progress** - Live transfer status updates
+- 📈 **Detailed Reports** - Failed tracks with categorized reasons
+- ⚡ **Performance** - Rate limiting and intelligent caching
+- 🐳 **Production Ready** - Docker support and security headers
+- 🔍 **Health Monitoring** - Built-in health checks
+
+---
+
+## 🏗️ **Architecture**
+
+### Tech Stack
+- **Backend**: ASP.NET Core 9.0
+- **Database**: SQLite (Entity Framework Core)
+- **Authentication**: OAuth 2.0 (Spotify & YouTube)
+- **Caching**: In-Memory Cache
+- **Logging**: Serilog
+- **API Documentation**: Swagger/OpenAPI
+
+### Project Structure
+```
+PlaylistTransferAPI/
+├── Controllers/          # API endpoints
+├── Services/            # Business logic
+├── Models/              # Data models and DTOs
+├── Data/                # Database context
+├── wwwroot/             # Static files (frontend)
+└── Dockerfile           # Container configuration
 ```
 
-## 📋 Features
+---
 
-- ✅ Spotify OAuth authentication
-- ✅ YouTube Music OAuth authentication
-- ✅ Playlist browsing and selection
-- ✅ Intelligent track matching algorithm
-- ✅ Real-time transfer progress
-- ✅ Failed tracks reporting with categories
-- ✅ Rate limiting and caching
-- ✅ Production-ready security
-- ✅ Mock implementation for API quota management
-- ✅ Health monitoring
-
-## 🔧 Configuration
+## ⚙️ **Configuration**
 
 ### Rate Limiting
-
-Production ayarları:
 ```json
 {
   "RateLimit": {
-    "PermitLimit": 50,
+    "PermitLimit": 100,
     "WindowInMinutes": 1
   }
 }
 ```
 
-### Cache Settings
-
+### Transfer Options
 ```json
 {
-  "Cache": {
-    "SearchCacheMinutes": 120,
-    "PlaylistCacheMinutes": 20
+  "Transfer": {
+    "DefaultSearchResultLimit": 5,
+    "DefaultMinMatchConfidence": 0.7,
+    "DelayBetweenRequestsMs": 500,
+    "BatchSize": 10
   }
 }
 ```
 
-## 📊 Monitoring
-
-### Health Check
-```bash
-curl https://tunesync.onrender.com/health
+### Cache Settings
+```json
+{
+  "Cache": {
+    "SearchCacheMinutes": 60,
+    "PlaylistCacheMinutes": 10,
+    "UserProfileCacheMinutes": 30
+  }
+}
 ```
 
-### Render.com Logs
-Dashboard → Logs bölümünden real-time logları görüntüleyin.
+---
 
-## 🔒 Security
+## 🔍 **Monitoring & Health Checks**
 
-- HTTPS zorlamalı
-- Security headers (HSTS, X-Frame-Options, etc.)
-- Rate limiting
-- Input validation
-- Environment-based configuration
+### Health Endpoint
+```bash
+curl https://your-app.onrender.com/health
+```
 
-## 🐛 Troubleshooting
+### API Documentation
+Visit `/swagger` for interactive API documentation
+
+### Logging
+- **Development**: Console + File logs
+- **Production**: Structured logging with Serilog
+
+---
+
+## 🛡️ **Security Features**
+
+- **HTTPS Enforcement** - Redirects HTTP to HTTPS
+- **Security Headers** - HSTS, X-Frame-Options, CSP
+- **Rate Limiting** - Prevents API abuse
+- **Input Validation** - Sanitized user inputs
+- **OAuth 2.0** - Secure third-party authentication
+- **Environment Variables** - Secure credential management
+
+---
+
+## 🐛 **Troubleshooting**
 
 ### Common Issues
 
-1. **API Key Issues**
-   - Render.com Dashboard → Environment'da değişkenleri kontrol edin
-   - API key'lerin doğru set edildiğinden emin olun
+**1. OAuth Callback Errors**
+- Verify redirect URIs in Spotify/YouTube consoles
+- Ensure URIs match exactly: `https://your-app.onrender.com/api/auth/{provider}/callback`
 
-2. **OAuth Callback Issues**
-   - Spotify/YouTube console'larda redirect URI'ları kontrol edin
-   - `https://tunesync.onrender.com/api/auth/*/callback` formatında olmalı
+**2. API Rate Limits**
+- YouTube API has daily quotas
+- Implement exponential backoff for retries
+- Monitor usage in Google Cloud Console
 
-3. **Build Issues**
-   - Render.com Logs'ta build hatalarını kontrol edin
-   - `PlaylistTransferAPI` root directory'sinin doğru set edildiğinden emin olun
+**3. Build Failures**
+- Check Render.com build logs
+- Verify `PlaylistTransferAPI` is set as root directory
+- Ensure all dependencies are included
 
-## 📞 Support
+**4. Token Validation Issues**
+- Check API key permissions
+- Verify OAuth scopes are correct
+- Ensure tokens haven't expired
 
-- GitHub Repository: [MusicTransferHub](https://github.com/ArslanKG/MusicTransferHub)
-- Live Demo: [https://tunesync.onrender.com](https://tunesync.onrender.com)
+---
 
-## 📄 License
+## 🚀 **Deployment Options**
 
-MIT License - Detaylar için LICENSE dosyasına bakın.
+### Render.com (Recommended)
+- Free tier available
+- Automatic deploys from GitHub
+- Built-in SSL certificates
+- Environment variable management
+
+### Docker
+```bash
+docker build -t tunesync .
+docker run -p 10000:80 tunesync
+```
+
+### Manual Deployment
+```bash
+dotnet publish -c Release
+# Deploy to your preferred hosting platform
+```
+
+---
+
+## 🤝 **Contributing**
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+---
+
+## 📝 **License**
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🌟 **Acknowledgments**
+
+- [Spotify Web API](https://developer.spotify.com/documentation/web-api)
+- [YouTube Data API v3](https://developers.google.com/youtube/v3)
+- [ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core)
+
+---
+
+## 👨‍💻 **Developer**
+
+**Arslan Kemal Gündüz**
+- 🌐 Portfolio: [arkegu-portfolio.vercel.app](https://arkegu-portfolio.vercel.app/)
+- 💼 LinkedIn: [Arslan Kemal Gündüz](https://www.linkedin.com/in/arslan-kemal-gunduz/)
+
+---
+
+**⭐ If this project helped you, please give it a star on GitHub!**
