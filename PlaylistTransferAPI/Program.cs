@@ -1,9 +1,30 @@
+using DotNetEnv;
 using PlaylistTransferAPI.Services;
 using PlaylistTransferAPI.Services.Interfaces;
 using Serilog;
 using System.Threading.RateLimiting;
 
+// .env dosyasını yükle (varsa)
+if (File.Exists(".env"))
+{
+    Env.Load();
+}
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Environment değişkenlerini configuration'a ekle
+builder.Configuration.AddEnvironmentVariables();
+
+// Environment değişkenlerini configuration section'larına map et
+builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+{
+    ["Spotify:ClientId"] = Environment.GetEnvironmentVariable("Spotify__ClientId") ?? Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_ID") ?? "",
+    ["Spotify:ClientSecret"] = Environment.GetEnvironmentVariable("Spotify__ClientSecret") ?? Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_SECRET") ?? "",
+    ["YouTube:ClientId"] = Environment.GetEnvironmentVariable("YouTube__ClientId") ?? Environment.GetEnvironmentVariable("YOUTUBE_CLIENT_ID") ?? "",
+    ["YouTube:ClientSecret"] = Environment.GetEnvironmentVariable("YouTube__ClientSecret") ?? Environment.GetEnvironmentVariable("YOUTUBE_CLIENT_SECRET") ?? "",
+    ["YouTube:ApiKey"] = Environment.GetEnvironmentVariable("YouTube__ApiKey") ?? Environment.GetEnvironmentVariable("YOUTUBE_API_KEY") ?? "",
+    ["Production:Domain"] = Environment.GetEnvironmentVariable("DOMAIN") ?? "yourdomain.com"
+});
 
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
