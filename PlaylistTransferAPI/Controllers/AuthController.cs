@@ -25,8 +25,11 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var clientId = _configuration["SPOTIFY_CLIENT_ID"];
-            var redirectUri = "https://tunesync.onrender.com/auth/spotify/callback";
+            var clientId = _configuration["Spotify:ClientId"];
+            var host = Request.Host.Host == "localhost" ? "127.0.0.1" : Request.Host.Host;
+            var port = Request.Host.Port ?? (Request.IsHttps ? 443 : 80);
+            var baseUrl = Request.IsHttps ? $"https://{host}:{port}" : $"http://{host}:{port}";
+            var redirectUri = $"{baseUrl}/api/auth/spotify/callback";
             var state = Guid.NewGuid().ToString("N")[..16]; // CSRF protection
 
             if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(redirectUri))
@@ -64,8 +67,11 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var clientId = _configuration["YOUTUBE_CLIENT_ID"];
-            var redirectUri = "https://tunesync.onrender.com/auth/youtube/callback";
+            var clientId = _configuration["YouTube:ClientId"];
+            var host = Request.Host.Host == "localhost" ? "127.0.0.1" : Request.Host.Host;
+            var port = Request.Host.Port ?? (Request.IsHttps ? 443 : 80);
+            var baseUrl = Request.IsHttps ? $"https://{host}:{port}" : $"http://{host}:{port}";
+            var redirectUri = $"{baseUrl}/api/auth/youtube/callback";
             var state = Guid.NewGuid().ToString("N")[..16]; // CSRF protection
 
             if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(redirectUri))
@@ -73,7 +79,7 @@ public class AuthController : ControllerBase
                 return BadRequest(ApiResponse<string>.ErrorResponse("YouTube configuration is missing"));
             }
 
-            var scopes = "https://www.googleapis.com/auth/youtube";
+            var scopes = "https://www.googleapis.com/auth/youtube https://www.googleapis.com/auth/youtube.force-ssl";
             
             var authUrl = "https://accounts.google.com/o/oauth2/v2/auth?" +
                 $"client_id={Uri.EscapeDataString(clientId)}&" +
@@ -100,7 +106,7 @@ public class AuthController : ControllerBase
     /// Spotify OAuth callback handler
     /// </summary>
     [HttpGet("spotify/callback")]
-    public async Task<IActionResult> SpotifyCallback([FromQuery] string code, [FromQuery] string state, [FromQuery] string error)
+    public async Task<IActionResult> SpotifyCallback([FromQuery] string code, [FromQuery] string state, [FromQuery] string? error = null)
     {
         try
         {
@@ -149,7 +155,7 @@ public class AuthController : ControllerBase
     /// YouTube OAuth callback handler
     /// </summary>
     [HttpGet("youtube/callback")]
-    public async Task<IActionResult> YouTubeCallback([FromQuery] string code, [FromQuery] string state, [FromQuery] string error)
+    public async Task<IActionResult> YouTubeCallback([FromQuery] string code, [FromQuery] string state, [FromQuery] string? error = null)
     {
         try
         {
@@ -198,9 +204,12 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var clientId = _configuration["SPOTIFY_CLIENT_ID"];
-            var clientSecret = _configuration["SPOTIFY_CLIENT_SECRET"];
-            var redirectUri = "https://tunesync.onrender.com/auth/spotify/callback";
+            var clientId = _configuration["Spotify:ClientId"];
+            var clientSecret = _configuration["Spotify:ClientSecret"];
+            var host = Request.Host.Host == "localhost" ? "127.0.0.1" : Request.Host.Host;
+            var port = Request.Host.Port ?? (Request.IsHttps ? 443 : 80);
+            var baseUrl = Request.IsHttps ? $"https://{host}:{port}" : $"http://{host}:{port}";
+            var redirectUri = $"{baseUrl}/api/auth/spotify/callback";
 
             using var httpClient = new HttpClient();
             
@@ -244,9 +253,12 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var clientId = _configuration["YOUTUBE_CLIENT_ID"];
-            var clientSecret = _configuration["YOUTUBE_CLIENT_SECRET"];
-            var redirectUri = "https://tunesync.onrender.com/auth/youtube/callback";
+            var clientId = _configuration["YouTube:ClientId"];
+            var clientSecret = _configuration["YouTube:ClientSecret"];
+            var host = Request.Host.Host == "localhost" ? "127.0.0.1" : Request.Host.Host;
+            var port = Request.Host.Port ?? (Request.IsHttps ? 443 : 80);
+            var baseUrl = Request.IsHttps ? $"https://{host}:{port}" : $"http://{host}:{port}";
+            var redirectUri = $"{baseUrl}/api/auth/youtube/callback";
 
             using var httpClient = new HttpClient();
             

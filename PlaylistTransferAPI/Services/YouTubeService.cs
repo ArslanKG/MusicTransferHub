@@ -35,7 +35,8 @@ public class YouTubeService : IYouTubeService
                 throw new InvalidOperationException("YouTube API key not configured");
             }
 
-            var cacheKey = $"youtube_search_{query.GetHashCode()}_{maxResults}";
+            var normalizedQuery = query.ToLowerInvariant().Trim();
+            var cacheKey = $"youtube_search_{normalizedQuery.GetHashCode()}_{maxResults}";
             if (_cache.TryGetValue(cacheKey, out List<YouTubeVideoDto>? cachedResults))
             {
                 return cachedResults!;
@@ -49,7 +50,7 @@ public class YouTubeService : IYouTubeService
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("YouTube API search error: {StatusCode} - {Content}", 
+                _logger.LogError("YouTube API search error: {StatusCode} - {Content}",
                     response.StatusCode, errorContent);
                 return new List<YouTubeVideoDto>();
             }
@@ -62,8 +63,7 @@ public class YouTubeService : IYouTubeService
                 return new List<YouTubeVideoDto>();
             }
 
-            // Cache for 1 hour
-            _cache.Set(cacheKey, searchResponse.Items, TimeSpan.FromHours(1));
+            _cache.Set(cacheKey, searchResponse.Items, TimeSpan.FromHours(6));
 
             return searchResponse.Items;
         }
@@ -83,14 +83,27 @@ public class YouTubeService : IYouTubeService
 
             foreach (var query in searchQueries)
             {
-                var results = await SearchVideosAsync(query, options.SearchResultLimit);
-                allResults.AddRange(results);
+                try
+                {
+                    var results = await SearchVideosAsync(query, Math.Min(options.SearchResultLimit, 3));
+                    allResults.AddRange(results);
 
-                // Rate limiting
-                await Task.Delay(200);
+                    await Task.Delay(1000);
+
+                    if (allResults.Count >= 15) break;
+                }
+                catch (Exception queryEx)
+                {
+                    _logger.LogWarning(queryEx, "Failed to search with query: {Query}", query);
+                    
+                    if (queryEx.Message.Contains("quota"))
+                    {
+                        await Task.Delay(5000);
+                        continue;
+                    }
+                }
             }
 
-            // Remove duplicates and sort by relevance
             var uniqueResults = allResults
                 .GroupBy(v => v.Id.VideoId)
                 .Select(g => g.First())
@@ -100,7 +113,7 @@ public class YouTubeService : IYouTubeService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error searching track: {TrackName} by {Artist}", 
+            _logger.LogError(ex, "Error searching track: {TrackName} by {Artist}",
                 track.Name, string.Join(", ", track.Artists.Select(a => a.Name)));
             return new List<YouTubeVideoDto>();
         }
@@ -135,7 +148,7 @@ public class YouTubeService : IYouTubeService
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("YouTube API playlist creation error: {StatusCode} - {Content}", 
+                _logger.LogError("YouTube API playlist creation error: {StatusCode} - {Content}",
                     response.StatusCode, errorContent);
                 throw new HttpRequestException($"YouTube API error: {response.StatusCode}");
             }
@@ -187,7 +200,7 @@ public class YouTubeService : IYouTubeService
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("YouTube API add video error: {StatusCode} - {Content}", 
+                _logger.LogError("YouTube API add video error: {StatusCode} - {Content}",
                     response.StatusCode, errorContent);
                 return null;
             }
@@ -195,6 +208,7 @@ public class YouTubeService : IYouTubeService
             var responseContent = await response.Content.ReadAsStringAsync();
             var playlistItem = JsonConvert.DeserializeObject<YouTubePlaylistItemResponse>(responseContent);
 
+            _logger.LogInformation("Added video {VideoId} to playlist {PlaylistId}", videoId, playlistId);
             return playlistItem;
         }
         catch (Exception ex)
@@ -209,10 +223,30 @@ public class YouTubeService : IYouTubeService
         try
         {
             _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {accessToken}");
+            
+            // Use Google's tokeninfo endpoint for simple validation
+            var response = await _httpClient.GetAsync($"https://www.googleapis.com/oauth2/v1/tokeninfo?access_token={Uri.EscapeDataString(accessToken)}");
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("YouTube token validation failed: {StatusCode}", response.StatusCode);
+                return false;
+            }
 
-            var response = await _httpClient.GetAsync($"{BaseUrl}/channels?part=snippet&mine=true");
-            return response.IsSuccessStatusCode;
+            var content = await response.Content.ReadAsStringAsync();
+            var tokenInfo = JsonConvert.DeserializeObject<dynamic>(content);
+            
+            // Check if token has required YouTube scope
+            var scope = tokenInfo?.scope?.ToString() ?? "";
+            var hasYouTubeScope = scope.Contains("youtube") || scope.Contains("https://www.googleapis.com/auth/youtube");
+            
+            if (!hasYouTubeScope)
+            {
+                _logger.LogWarning("YouTube token missing required scopes: {Scope}", (object)scope);
+                return false;
+            }
+
+            return true;
         }
         catch (Exception ex)
         {
@@ -322,7 +356,7 @@ public class YouTubeService : IYouTubeService
         }
     }
 
-    public YouTubeVideoDto? FindBestMatch(Track track, List<YouTubeVideoDto> searchResults, double minConfidence = 0.7)
+    public YouTubeVideoDto? FindBestMatch(Track track, List<YouTubeVideoDto> searchResults, double minConfidence = 0.4)
     {
         if (!searchResults.Any()) return null;
 
@@ -425,6 +459,24 @@ public class YouTubeService : IYouTubeService
         {
             queries.Add($"{cleanArtist} {trackName}");
             queries.Add($"{trackName} {cleanArtist}");
+            queries.Add($"\"{cleanArtist}\" \"{trackName}\""); // Exact phrase search
+        }
+
+        // More flexible artist variations
+        if (!string.IsNullOrEmpty(cleanArtist))
+        {
+            // Try with "official" keyword
+            queries.Add($"{cleanArtist} {trackName} official");
+            queries.Add($"{cleanArtist} {trackName} music video");
+            queries.Add($"{cleanArtist} {trackName} audio");
+            
+            // Try without special characters
+            var simpleArtist = Regex.Replace(cleanArtist, @"[^\w\s]", "");
+            var simpleTrack = Regex.Replace(trackName, @"[^\w\s]", "");
+            if (simpleArtist != cleanArtist || simpleTrack != trackName)
+            {
+                queries.Add($"{simpleArtist} {simpleTrack}");
+            }
         }
 
         // Search with album if enabled
@@ -434,10 +486,12 @@ public class YouTubeService : IYouTubeService
             queries.Add($"{cleanArtist} {trackName} {cleanAlbum}");
         }
 
-        // Fallback: just track name
-        queries.Add(trackName);
+        // Fallback strategies
+        queries.Add(trackName); // Just track name
+        queries.Add($"{trackName} lyrics"); // With lyrics keyword
+        queries.Add($"{trackName} cover"); // Cover versions
 
-        return queries.Take(3).ToList(); // Limit to 3 queries to avoid hitting rate limits
+        return queries.Take(6).ToList(); // Increase to 6 queries for better matching
     }
 
     private string CleanSearchString(string input)
@@ -447,6 +501,13 @@ public class YouTubeService : IYouTubeService
         // Remove common music-related suffixes/prefixes
         var cleaned = Regex.Replace(input, @"\(.*?\)|\[.*?\]", string.Empty); // Remove parentheses and brackets
         cleaned = Regex.Replace(cleaned, @"\b(feat|ft|featuring|with|vs|&)\b.*", string.Empty, RegexOptions.IgnoreCase);
+        
+        // Remove common version indicators
+        cleaned = Regex.Replace(cleaned, @"\b(remix|remaster|remastered|deluxe|explicit|clean|radio edit|extended|acoustic|live)\b", string.Empty, RegexOptions.IgnoreCase);
+        
+        // Remove year indicators
+        cleaned = Regex.Replace(cleaned, @"\b(19|20)\d{2}\b", string.Empty);
+        
         cleaned = Regex.Replace(cleaned, @"\s+", " "); // Normalize whitespace
         
         return cleaned.Trim();

@@ -32,17 +32,27 @@ public class TransferService : ITransferService
 
         try
         {
-            // Validate tokens
             var spotifyValid = await _spotifyService.ValidateAccessTokenAsync(request.SpotifyAccessToken);
             var youtubeValid = await _youtubeService.ValidateAccessTokenAsync(request.YouTubeAccessToken);
 
-            if (!spotifyValid || !youtubeValid)
+            if (!spotifyValid)
             {
                 return new TransferResult
                 {
                     Success = false,
                     TransferId = transferId,
-                    Message = "Invalid access tokens",
+                    Message = "Spotify token geçersiz. Lütfen tekrar giriş yapın.",
+                    Status = TransferStatus.Failed
+                };
+            }
+            
+            if (!youtubeValid)
+            {
+                return new TransferResult
+                {
+                    Success = false,
+                    TransferId = transferId,
+                    Message = "YouTube token bulunamadı. Lütfen YouTube ile giriş yapın.",
                     Status = TransferStatus.Failed
                 };
             }
@@ -123,11 +133,7 @@ public class TransferService : ITransferService
                         failedTracks.Add(CreateFailedTrack(track, "No suitable match found"));
                     }
 
-                    // Update progress
                     await UpdateTransferProgressAsync(transferId, successfulTracks + failedTracks.Count, successfulTracks, failedTracks.Count);
-
-                    // Rate limiting
-                    await Task.Delay(500);
                 }
                 catch (Exception ex)
                 {
@@ -142,6 +148,21 @@ public class TransferService : ITransferService
             transferLog.Duration = transferLog.CompletedAt - transferLog.CreatedAt;
             transferLog.SuccessfulTracks = successfulTracks;
             transferLog.FailedTracks = failedTracks.Count;
+            
+            // Save failed tracks to database
+            if (failedTracks.Any())
+            {
+                transferLog.FailedTracksList = failedTracks.Select(ft => new FailedTrack
+                {
+                    TransferLogId = transferId,
+                    TrackName = ft.TrackName,
+                    Artist = ft.Artist,
+                    Album = ft.Album,
+                    FailureReason = ft.FailureReason,
+                    AttemptedAt = ft.AttemptedAt,
+                    SpotifyTrackId = ft.SpotifyTrackId
+                }).ToList();
+            }
 
             await _context.SaveChangesAsync();
 
@@ -198,6 +219,21 @@ public class TransferService : ITransferService
         var transferLog = await _context.TransferLogs.FindAsync(transferId);
         if (transferLog == null) return null;
 
+        // Get failed tracks from database if transfer is completed
+        var failedTracks = new List<FailedTrackDto>();
+        if (transferLog.Status == TransferStatus.Completed && transferLog.FailedTracksList != null && transferLog.FailedTracksList.Any())
+        {
+            failedTracks = transferLog.FailedTracksList.Select(ft => new FailedTrackDto
+            {
+                TrackName = ft.TrackName,
+                Artist = ft.Artist,
+                Album = ft.Album,
+                FailureReason = ft.FailureReason,
+                AttemptedAt = ft.AttemptedAt,
+                SpotifyTrackId = ft.SpotifyTrackId
+            }).ToList();
+        }
+
         return new TransferResult
         {
             Success = transferLog.Status == TransferStatus.Completed,
@@ -214,6 +250,7 @@ public class TransferService : ITransferService
                 StartedAt = transferLog.CreatedAt,
                 CompletedAt = transferLog.CompletedAt
             },
+            FailedTracks = failedTracks,
             CompletedAt = transferLog.CompletedAt ?? DateTime.UtcNow,
             Duration = transferLog.Duration ?? TimeSpan.Zero
         };
@@ -243,8 +280,7 @@ public class TransferService : ITransferService
 
     public async Task<TransferResult> RetryTransferAsync(string transferId, TransferRequest? newRequest = null)
     {
-        // Implementation for retry logic
-        throw new NotImplementedException("Retry functionality will be implemented in next iteration");
+        throw new NotImplementedException();
     }
 
     public async Task<TransferStatistics> GetTransferStatisticsAsync(string? userId = null)
@@ -287,8 +323,7 @@ public class TransferService : ITransferService
 
     public async Task<TransferResult> RetryFailedTracksAsync(string transferId, string youtubeAccessToken)
     {
-        // Implementation for retrying failed tracks
-        throw new NotImplementedException("Retry failed tracks functionality will be implemented in next iteration");
+        throw new NotImplementedException();
     }
 
     private FailedTrackDto CreateFailedTrack(Track track, string reason)

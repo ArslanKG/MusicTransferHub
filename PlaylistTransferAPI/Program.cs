@@ -97,6 +97,22 @@ if (app.Environment.IsDevelopment())
         c.RoutePrefix = "swagger";
     });
 }
+else
+{
+    // Production security headers
+    app.Use(async (context, next) =>
+    {
+        context.Response.Headers.Add("X-Content-Type-Options", "nosniff");
+        context.Response.Headers.Add("X-Frame-Options", "DENY");
+        context.Response.Headers.Add("X-XSS-Protection", "1; mode=block");
+        context.Response.Headers.Add("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+        context.Response.Headers.Add("Referrer-Policy", "strict-origin-when-cross-origin");
+        await next();
+    });
+    
+    // Global exception handler for production
+    app.UseExceptionHandler("/error");
+}
 
 // Ensure database is created
 using (var scope = app.Services.CreateScope())
@@ -115,6 +131,12 @@ using (var scope = app.Services.CreateScope())
 
 app.UseSerilogRequestLogging();
 
+// Force HTTPS in production
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
 app.UseHttpsRedirection();
 
 app.UseStaticFiles();
@@ -128,6 +150,12 @@ app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Add error handling endpoint for production
+app.MapGet("/error", () => Results.Problem("An error occurred"));
+
+// Add health check
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
 // Add default route for frontend
 app.MapFallbackToFile("index.html");

@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using PlaylistTransferAPI.Models.DTOs;
 using PlaylistTransferAPI.Models.Responses;
 using PlaylistTransferAPI.Services.Interfaces;
+using System.Collections;
+using System.Reflection;
 
 namespace PlaylistTransferAPI.Controllers;
 
@@ -12,17 +15,20 @@ public class PlaylistController : ControllerBase
     private readonly ISpotifyService _spotifyService;
     private readonly IYouTubeService _youtubeService;
     private readonly ITransferService _transferService;
+    private readonly IMemoryCache _cache;
     private readonly ILogger<PlaylistController> _logger;
 
     public PlaylistController(
         ISpotifyService spotifyService,
         IYouTubeService youtubeService,
         ITransferService transferService,
+        IMemoryCache cache,
         ILogger<PlaylistController> logger)
     {
         _spotifyService = spotifyService;
         _youtubeService = youtubeService;
         _transferService = transferService;
+        _cache = cache;
         _logger = logger;
     }
 
@@ -193,6 +199,52 @@ public class PlaylistController : ControllerBase
         {
             _logger.LogError(ex, "Error cancelling transfer {TransferId}", transferId);
             return StatusCode(500, ApiResponse<bool>.ErrorResponse("Internal server error"));
+        }
+    }
+
+    /// <summary>
+    /// Cache'i tamamen temizler
+    /// </summary>
+    [HttpGet("cache/clear")]
+    [HttpPost("cache/clear")]
+    public ActionResult<ApiResponse<bool>> ClearAllCache()
+    {
+        try
+        {
+            if (_cache is MemoryCache memoryCache)
+            {
+                var field = typeof(MemoryCache).GetField("_coherentState", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (field != null)
+                {
+                    var coherentState = field.GetValue(memoryCache);
+                    var entriesCollection = coherentState?.GetType().GetProperty("EntriesCollection", BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (entriesCollection?.GetValue(coherentState) is IDictionary dictionary)
+                    {
+                        dictionary.Clear();
+                        _logger.LogInformation("Cache cleared successfully");
+                        return Ok(ApiResponse<bool>.SuccessResponse(true, "Cache başarıyla temizlendi"));
+                    }
+                }
+                
+                var clearMethod = typeof(MemoryCache).GetMethod("Clear", BindingFlags.Public | BindingFlags.Instance);
+                if (clearMethod != null)
+                {
+                    clearMethod.Invoke(memoryCache, null);
+                    _logger.LogInformation("Cache cleared successfully");
+                    return Ok(ApiResponse<bool>.SuccessResponse(true, "Cache başarıyla temizlendi"));
+                }
+                
+                return Ok(ApiResponse<bool>.SuccessResponse(false, "Cache temizleme metodu bulunamadı"));
+            }
+            else
+            {
+                return Ok(ApiResponse<bool>.SuccessResponse(false, "Cache temizlenemedi"));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Cache temizleme sırasında hata oluştu: {Message}", ex.Message);
+            return StatusCode(500, ApiResponse<bool>.ErrorResponse($"Cache temizleme sırasında hata oluştu: {ex.Message}"));
         }
     }
 }

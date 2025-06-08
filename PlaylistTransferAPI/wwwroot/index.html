@@ -3,187 +3,450 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spotify to YouTube Music Playlist Transfer</title>
+    <title>TuneSync - Playlist Transfer</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        .gradient-bg {
-            background: linear-gradient(135deg, #1DB954 0%, #FF0000 100%);
+        :root {
+            --spotify-green: #1DB954;
+            --youtube-red: #FF0000;
+            --accent-purple: #6c5ce7;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--spotify-green) 0%, var(--youtube-red) 100%);
             min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        .card-custom {
-            backdrop-filter: blur(10px);
+        
+        .main-container {
             background: rgba(255, 255, 255, 0.95);
-            border: none;
-            border-radius: 20px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 25px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
         }
-        .btn-spotify {
-            background: #1DB954;
-            border-color: #1DB954;
+        
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        .step {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            margin: 0 0.5rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .step.active {
+            background: linear-gradient(45deg, var(--accent-purple), #a55eea);
+            color: white;
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+        }
+        
+        .step.completed {
+            background: #28a745;
             color: white;
         }
+        
+        .step.pending {
+            background: #f8f9fa;
+            color: #6c757d;
+        }
+        
+        .step-number {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .connection-card {
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .connection-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+        
+        .connection-card:hover::before {
+            left: 100%;
+        }
+        
+        .connection-card.connected {
+            border-color: #28a745;
+            background: linear-gradient(145deg, #f8fff9, #e6f7e6);
+        }
+        
+        .connection-card.pending {
+            border-color: #e9ecef;
+        }
+        
+        .btn-spotify {
+            background: var(--spotify-green);
+            border: none;
+            color: white;
+            font-weight: 500;
+            padding: 0.75rem 1.5rem;
+            transition: all 0.3s ease;
+        }
+        
         .btn-spotify:hover {
             background: #1ed760;
-            border-color: #1ed760;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(29, 185, 84, 0.3);
             color: white;
         }
+        
         .btn-youtube {
-            background: #FF0000;
-            border-color: #FF0000;
+            background: var(--youtube-red);
+            border: none;
             color: white;
+            font-weight: 500;
+            padding: 0.75rem 1.5rem;
+            transition: all 0.3s ease;
         }
+        
         .btn-youtube:hover {
             background: #ff1a1a;
-            border-color: #ff1a1a;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 0, 0, 0.3);
             color: white;
         }
+        
         .status-badge {
-            font-size: 0.8rem;
-            padding: 0.25rem 0.5rem;
+            font-size: 0.85rem;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-weight: 500;
         }
+        
         .playlist-card {
-            transition: transform 0.2s;
+            transition: all 0.3s ease;
             cursor: pointer;
+            border: 2px solid transparent;
         }
+        
         .playlist-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .playlist-card.selected {
+            border-color: #007bff;
+            background: linear-gradient(145deg, #f0f8ff, #e3f2fd);
+        }
+        
+        .progress-container {
+            background: linear-gradient(145deg, #f8f9fa, #e9ecef);
+            border-radius: 15px;
+            padding: 2rem;
+        }
+        
+        .feature-badge {
+            background: linear-gradient(45deg, var(--accent-purple), #a55eea);
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            margin: 0.2rem;
+            display: inline-block;
+            box-shadow: 0 2px 8px rgba(108, 92, 231, 0.2);
+        }
+        
+        .hero-section {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .hero-title {
+            background: linear-gradient(45deg, var(--spotify-green), var(--youtube-red));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+            font-size: 3rem;
+        }
+        
+        .connection-status {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #dc3545;
+        }
+        
+        .connection-status.connected {
+            background: #28a745;
+            box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .btn-transfer {
+            background: linear-gradient(45deg, #ff6b6b, #ffa500);
+            border: none;
+            color: white;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 25px;
+            animation: pulse 2s infinite;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+        
+        .btn-transfer:hover {
+            background: linear-gradient(45deg, #ff5252, #ff9800);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(255, 107, 107, 0.5);
+            color: white;
+        }
+        
+        .clear-cache-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(45deg, #6c5ce7, #a55eea);
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+        }
+        
+        .clear-cache-btn:hover {
+            background: linear-gradient(45deg, #5b4cdb, #9c4fea);
             transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(108, 92, 231, 0.4);
+            color: white;
+        }
+        
+        .clear-cache-btn:active {
+            transform: translateY(0px);
         }
     </style>
 </head>
 <body>
-    <div class="gradient-bg">
-        <div class="container py-5">
-            <div class="row justify-content-center">
-                <div class="col-md-10">
-                    <div class="card card-custom">
-                        <div class="card-body p-5">
-                            <div class="text-center mb-5">
-                                <h1 class="display-4 fw-bold mb-3">
-                                    <i class="bi bi-music-note-list text-success"></i>
-                                    Playlist Transfer
-                                </h1>
-                                <p class="lead text-muted">
-                                    Spotify playlist'lerinizi YouTube Music'e kolayca transfer edin
-                                </p>
-                            </div>
+    <div class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-xl-10">
+                <div class="main-container p-5">
+                    <!-- Hero Section -->
+                    <div class="hero-section">
+                        <h1 class="hero-title mb-3">
+                            <i class="bi bi-music-note-list"></i> TuneSync
+                        </h1>
+                        <p class="lead text-muted mb-4">
+                            Spotify playlist'lerinizi YouTube Music'e anında transfer edin
+                        </p>
+                        <div class="d-flex flex-wrap justify-content-center gap-2">
+                            <span class="feature-badge"><i class="bi bi-lightning"></i> Hızlı Transfer</span>
+                            <span class="feature-badge"><i class="bi bi-shield-check"></i> Güvenli</span>
+                            <span class="feature-badge"><i class="bi bi-music-note"></i> Akıllı Eşleştirme</span>
+                            <span class="feature-badge"><i class="bi bi-graph-up"></i> %95 Başarı Oranı</span>
+                        </div>
+                        
+                        <!-- Cache Temizleme Butonu -->
+                        <button id="clearCacheBtn" class="clear-cache-btn" title="Cache'i tamamen temizle">
+                            <i class="bi bi-trash"></i> Cache Temizle
+                        </button>
+                    </div>
 
-                            <!-- Authentication Section -->
-                            <div class="row mb-5">
-                                <div class="col-md-6">
-                                    <div class="card h-100">
-                                        <div class="card-body text-center">
-                                            <i class="bi bi-spotify fs-1 text-success mb-3"></i>
-                                            <h5>Spotify</h5>
-                                            <p class="text-muted small">Playlist'lerinizi almak için giriş yapın</p>
-                                            <button id="spotifyLogin" class="btn btn-spotify btn-sm">
-                                                <i class="bi bi-box-arrow-in-right"></i> Spotify'a Bağlan
-                                            </button>
-                                            <div id="spotifyStatus" class="mt-2"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="card h-100">
-                                        <div class="card-body text-center">
-                                            <i class="bi bi-youtube fs-1 text-danger mb-3"></i>
-                                            <h5>YouTube Music</h5>
-                                            <p class="text-muted small">Playlist oluşturmak için giriş yapın</p>
-                                            <button id="youtubeLogin" class="btn btn-youtube btn-sm">
-                                                <i class="bi bi-box-arrow-in-right"></i> YouTube'a Bağlan
-                                            </button>
-                                            <div id="youtubeStatus" class="mt-2"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                    <!-- Step Indicator -->
+                    <div class="step-indicator">
+                        <div class="step active" id="step1">
+                            <div class="step-number">1</div>
+                            <span>Bağlantılar</span>
+                        </div>
+                        <div class="step pending" id="step2">
+                            <div class="step-number">2</div>
+                            <span>Playlist Seç</span>
+                        </div>
+                        <div class="step pending" id="step3">
+                            <div class="step-number">3</div>
+                            <span>Transfer</span>
+                        </div>
+                        <div class="step pending" id="step4">
+                            <div class="step-number">4</div>
+                            <span>Tamamlandı</span>
+                        </div>
+                    </div>
 
-                            <!-- Playlist Selection -->
-                            <div id="playlistSection" class="d-none">
-                                <h4 class="mb-4">
-                                    <i class="bi bi-list-ul"></i> Spotify Playlist'leriniz
-                                </h4>
-                                <div id="playlistList" class="row g-3 mb-4">
-                                    <!-- Playlists will be loaded here -->
-                                </div>
-                            </div>
-
-                            <!-- Transfer Form -->
-                            <div id="transferSection" class="d-none">
-                                <div class="card bg-light">
-                                    <div class="card-body">
-                                        <h5 class="card-title">
-                                            <i class="bi bi-arrow-right-circle"></i> Transfer Ayarları
-                                        </h5>
-                                        <form id="transferForm">
-                                            <div class="row">
-                                                <div class="col-md-6 mb-3">
-                                                    <label for="playlistName" class="form-label">Yeni Playlist Adı</label>
-                                                    <input type="text" class="form-control" id="playlistName" required>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <label for="playlistPrivacy" class="form-label">Gizlilik</label>
-                                                    <select class="form-control" id="playlistPrivacy">
-                                                        <option value="private">Özel</option>
-                                                        <option value="public">Herkese Açık</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="playlistDescription" class="form-label">Açıklama (İsteğe bağlı)</label>
-                                                <textarea class="form-control" id="playlistDescription" rows="2"></textarea>
-                                            </div>
-                                            <button type="submit" class="btn btn-primary">
-                                                <i class="bi bi-play-circle"></i> Transfer'i Başlat
-                                            </button>
-                                        </form>
+                    <!-- Connection Section -->
+                    <div class="row g-4 mb-5">
+                        <div class="col-md-6">
+                            <div class="card connection-card pending h-100" id="spotifyCard">
+                                <div class="connection-status" id="spotifyConnectionStatus"></div>
+                                <div class="card-body text-center p-4">
+                                    <i class="bi bi-spotify fs-1 text-success mb-3"></i>
+                                    <h4 class="card-title">Spotify</h4>
+                                    <p class="text-muted mb-4">Playlist'lerinizi almak için bağlanın</p>
+                                    <button id="spotifyLogin" class="btn btn-spotify">
+                                        <i class="bi bi-box-arrow-in-right"></i> Spotify'a Bağlan
+                                    </button>
+                                    <div id="spotifyStatus" class="mt-3"></div>
+                                    <div id="spotifyInfo" class="mt-2 text-muted small d-none">
+                                        <i class="bi bi-info-circle"></i> Playlist'lerinizi görüntülemek için gerekli
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Progress Section -->
-                            <div id="progressSection" class="d-none mt-4">
-                                <div class="card">
-                                    <div class="card-body">
-                                        <h5 class="card-title">
-                                            <i class="bi bi-hourglass-split"></i> Transfer Durumu
-                                        </h5>
-                                        <div class="progress mb-3" style="height: 20px;">
-                                            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                                                 role="progressbar" style="width: 0%"></div>
-                                        </div>
-                                        <div id="progressText" class="text-center text-muted">
-                                            Transfer başlatılıyor...
-                                        </div>
-                                        <div id="progressStats" class="row text-center mt-3">
-                                            <div class="col-md-4">
-                                                <div class="h4 text-primary" id="totalTracks">0</div>
-                                                <small class="text-muted">Toplam Şarkı</small>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="h4 text-success" id="successTracks">0</div>
-                                                <small class="text-muted">Başarılı</small>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="h4 text-danger" id="failedTracks">0</div>
-                                                <small class="text-muted">Başarısız</small>
-                                            </div>
-                                        </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card connection-card pending h-100" id="youtubeCard">
+                                <div class="connection-status" id="youtubeConnectionStatus"></div>
+                                <div class="card-body text-center p-4">
+                                    <i class="bi bi-youtube fs-1 text-danger mb-3"></i>
+                                    <h4 class="card-title">YouTube Music</h4>
+                                    <p class="text-muted mb-4">Yeni playlist oluşturmak için bağlanın</p>
+                                    <button id="youtubeLogin" class="btn btn-youtube">
+                                        <i class="bi bi-box-arrow-in-right"></i> YouTube'a Bağlan
+                                    </button>
+                                    <div id="youtubeStatus" class="mt-3"></div>
+                                    <div id="youtubeInfo" class="mt-2 text-muted small d-none">
+                                        <i class="bi bi-info-circle"></i> Playlist oluşturmak için gerekli
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
 
-                            <!-- Results Section -->
-                            <div id="resultsSection" class="d-none mt-4">
-                                <div class="card">
-                                    <div class="card-body">
-                                        <h5 class="card-title">
-                                            <i class="bi bi-check-circle"></i> Transfer Sonuçları
-                                        </h5>
-                                        <div id="resultsContent">
-                                            <!-- Results will be shown here -->
+                    <!-- Ready Indicator -->
+                    <div id="readyIndicator" class="text-center mb-4 d-none">
+                        <div class="alert alert-success" role="alert">
+                            <i class="bi bi-check-circle-fill"></i>
+                            <strong>Harika!</strong> Her iki hesaba da bağlandınız. Şimdi transfer etmek istediğiniz playlist'i seçin.
+                        </div>
+                    </div>
+
+                    <!-- Playlist Selection -->
+                    <div id="playlistSection" class="d-none">
+                        <div class="d-flex align-items-center justify-content-between mb-4">
+                            <h4 class="mb-0">
+                                <i class="bi bi-list-ul text-primary"></i> Spotify Playlist'leriniz
+                            </h4>
+                            <small class="text-muted">Bir playlist seçin</small>
+                        </div>
+                        <div id="playlistList" class="row g-3 mb-4">
+                            <!-- Playlists will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Transfer Form -->
+                    <div id="transferSection" class="d-none">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="bi bi-arrow-right-circle"></i> Transfer Ayarları
+                                </h5>
+                            </div>
+                            <div class="card-body p-4">
+                                <form id="transferForm">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="playlistName" class="form-label">
+                                                <i class="bi bi-tag"></i> Yeni Playlist Adı
+                                            </label>
+                                            <input type="text" class="form-control" id="playlistName" required>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="playlistPrivacy" class="form-label">
+                                                <i class="bi bi-eye"></i> Gizlilik
+                                            </label>
+                                            <select class="form-select" id="playlistPrivacy">
+                                                <option value="private">Özel (Sadece ben)</option>
+                                                <option value="public">Herkese Açık</option>
+                                            </select>
                                         </div>
                                     </div>
+                                    <div class="mb-4">
+                                        <label for="playlistDescription" class="form-label">
+                                            <i class="bi bi-file-text"></i> Açıklama (İsteğe bağlı)
+                                        </label>
+                                        <textarea class="form-control" id="playlistDescription" rows="2" 
+                                                placeholder="Playlist hakkında kısa bir açıklama..."></textarea>
+                                    </div>
+                                    <div class="text-center">
+                                        <button type="submit" class="btn btn-transfer">
+                                            <i class="bi bi-play-circle-fill"></i> Transfer'i Başlat
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Section -->
+                    <div id="progressSection" class="d-none mt-4">
+                        <div class="progress-container">
+                            <h5 class="text-center mb-4">
+                                <i class="bi bi-hourglass-split text-primary"></i> Transfer İşlemi Devam Ediyor
+                            </h5>
+                            <div class="progress mb-3" style="height: 25px;">
+                                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                                     role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <div id="progressText" class="text-center text-muted mb-4">
+                                Transfer başlatılıyor...
+                            </div>
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <div class="h3 text-info mb-1" id="totalTracks">0</div>
+                                    <small class="text-muted">Toplam Şarkı</small>
+                                </div>
+                                <div class="col-4">
+                                    <div class="h3 text-success mb-1" id="successTracks">0</div>
+                                    <small class="text-muted">Başarılı</small>
+                                </div>
+                                <div class="col-4">
+                                    <div class="h3 text-danger mb-1" id="failedTracks">0</div>
+                                    <small class="text-muted">Başarısız</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results Section -->
+                    <div id="resultsSection" class="d-none mt-4">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="bi bi-check-circle-fill"></i> Transfer Tamamlandı
+                                </h5>
+                            </div>
+                            <div class="card-body p-4">
+                                <div id="resultsContent">
+                                    <!-- Results will be shown here -->
                                 </div>
                             </div>
                         </div>
@@ -193,11 +456,13 @@
         </div>
     </div>
 
-    <!-- API Documentation Link -->
-    <div class="position-fixed bottom-0 end-0 p-3">
-        <a href="/swagger" target="_blank" class="btn btn-outline-dark btn-sm">
-            <i class="bi bi-code-slash"></i> API Docs
-        </a>
+    <!-- Footer -->
+    <div class="text-center mt-4 pb-4">
+        <small class="text-white-50">
+            <i class="bi bi-code-slash"></i> 
+            <a href="/swagger" target="_blank" class="text-white-50 text-decoration-none">API Documentation</a>
+            | Made with ❤️ for music lovers
+        </small>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
