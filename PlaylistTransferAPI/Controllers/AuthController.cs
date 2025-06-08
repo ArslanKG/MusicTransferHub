@@ -26,9 +26,20 @@ public class AuthController : ControllerBase
         try
         {
             var clientId = _configuration["Spotify:ClientId"];
-            var host = Request.Host.Host == "localhost" ? "127.0.0.1" : Request.Host.Host;
-            var port = Request.Host.Port ?? (Request.IsHttps ? 443 : 80);
-            var baseUrl = Request.IsHttps ? $"https://{host}:{port}" : $"http://{host}:{port}";
+            var isLocal = Request.Host.Host == "localhost" || Request.Host.Host == "127.0.0.1";
+            
+            string baseUrl;
+            if (isLocal)
+            {
+                var port = Request.Host.Port ?? (Request.IsHttps ? 443 : 80);
+                baseUrl = Request.IsHttps ? $"https://127.0.0.1:{port}" : $"http://127.0.0.1:{port}";
+            }
+            else
+            {
+                // Production - always HTTPS, no port needed
+                baseUrl = $"https://{Request.Host.Host}";
+            }
+            
             var redirectUri = $"{baseUrl}/api/auth/spotify/callback";
             var state = Guid.NewGuid().ToString("N")[..16]; // CSRF protection
 
@@ -68,9 +79,20 @@ public class AuthController : ControllerBase
         try
         {
             var clientId = _configuration["YouTube:ClientId"];
-            var host = Request.Host.Host == "localhost" ? "127.0.0.1" : Request.Host.Host;
-            var port = Request.Host.Port ?? (Request.IsHttps ? 443 : 80);
-            var baseUrl = Request.IsHttps ? $"https://{host}:{port}" : $"http://{host}:{port}";
+            var isLocal = Request.Host.Host == "localhost" || Request.Host.Host == "127.0.0.1";
+            
+            string baseUrl;
+            if (isLocal)
+            {
+                var port = Request.Host.Port ?? (Request.IsHttps ? 443 : 80);
+                baseUrl = Request.IsHttps ? $"https://127.0.0.1:{port}" : $"http://127.0.0.1:{port}";
+            }
+            else
+            {
+                // Production - always HTTPS, no port needed
+                baseUrl = $"https://{Request.Host.Host}";
+            }
+            
             var redirectUri = $"{baseUrl}/api/auth/youtube/callback";
             var state = Guid.NewGuid().ToString("N")[..16]; // CSRF protection
 
@@ -206,9 +228,20 @@ public class AuthController : ControllerBase
         {
             var clientId = _configuration["Spotify:ClientId"];
             var clientSecret = _configuration["Spotify:ClientSecret"];
-            var host = Request.Host.Host == "localhost" ? "127.0.0.1" : Request.Host.Host;
-            var port = Request.Host.Port ?? (Request.IsHttps ? 443 : 80);
-            var baseUrl = Request.IsHttps ? $"https://{host}:{port}" : $"http://{host}:{port}";
+            var isLocal = Request.Host.Host == "localhost" || Request.Host.Host == "127.0.0.1";
+            
+            string baseUrl;
+            if (isLocal)
+            {
+                var port = Request.Host.Port ?? (Request.IsHttps ? 443 : 80);
+                baseUrl = Request.IsHttps ? $"https://127.0.0.1:{port}" : $"http://127.0.0.1:{port}";
+            }
+            else
+            {
+                // Production - always HTTPS, no port needed
+                baseUrl = $"https://{Request.Host.Host}";
+            }
+            
             var redirectUri = $"{baseUrl}/api/auth/spotify/callback";
 
             using var httpClient = new HttpClient();
@@ -255,9 +288,20 @@ public class AuthController : ControllerBase
         {
             var clientId = _configuration["YouTube:ClientId"];
             var clientSecret = _configuration["YouTube:ClientSecret"];
-            var host = Request.Host.Host == "localhost" ? "127.0.0.1" : Request.Host.Host;
-            var port = Request.Host.Port ?? (Request.IsHttps ? 443 : 80);
-            var baseUrl = Request.IsHttps ? $"https://{host}:{port}" : $"http://{host}:{port}";
+            var isLocal = Request.Host.Host == "localhost" || Request.Host.Host == "127.0.0.1";
+            
+            string baseUrl;
+            if (isLocal)
+            {
+                var port = Request.Host.Port ?? (Request.IsHttps ? 443 : 80);
+                baseUrl = Request.IsHttps ? $"https://127.0.0.1:{port}" : $"http://127.0.0.1:{port}";
+            }
+            else
+            {
+                // Production - always HTTPS, no port needed
+                baseUrl = $"https://{Request.Host.Host}";
+            }
+            
             var redirectUri = $"{baseUrl}/api/auth/youtube/callback";
 
             using var httpClient = new HttpClient();
