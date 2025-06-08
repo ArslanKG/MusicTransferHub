@@ -1,5 +1,3 @@
-using Microsoft.EntityFrameworkCore;
-using PlaylistTransferAPI.Data;
 using PlaylistTransferAPI.Models.DTOs;
 using PlaylistTransferAPI.Models.Entities;
 using PlaylistTransferAPI.Services.Interfaces;
@@ -10,18 +8,15 @@ public class TransferService : ITransferService
 {
     private readonly ISpotifyService _spotifyService;
     private readonly IYouTubeService _youtubeService;
-    private readonly ApplicationDbContext _context;
     private readonly ILogger<TransferService> _logger;
 
     public TransferService(
         ISpotifyService spotifyService,
         IYouTubeService youtubeService,
-        ApplicationDbContext context,
         ILogger<TransferService> logger)
     {
         _spotifyService = spotifyService;
         _youtubeService = youtubeService;
-        _context = context;
         _logger = logger;
     }
 
@@ -32,6 +27,8 @@ public class TransferService : ITransferService
 
         try
         {
+            _logger.LogInformation("Starting playlist transfer: {TransferId}", transferId);
+
             var spotifyValid = await _spotifyService.ValidateAccessTokenAsync(request.SpotifyAccessToken);
             var youtubeValid = await _youtubeService.ValidateAccessTokenAsync(request.YouTubeAccessToken);
 
@@ -57,7 +54,6 @@ public class TransferService : ITransferService
                 };
             }
 
-            // Get playlist from Spotify
             var playlistDetails = await _spotifyService.GetPlaylistDetailsAsync(request.SpotifyPlaylistId, request.SpotifyAccessToken);
             if (playlistDetails == null)
             {
@@ -73,35 +69,20 @@ public class TransferService : ITransferService
             var tracks = await _spotifyService.GetPlaylistTracksAsync(request.SpotifyPlaylistId, request.SpotifyAccessToken);
             var convertedTracks = tracks.Select(_spotifyService.ConvertToTrack).ToList();
 
-            // Create transfer log
-            var transferLog = new TransferLog
-            {
-                Id = transferId,
-                UserId = request.UserId,
-                SpotifyPlaylistId = request.SpotifyPlaylistId,
-                Status = TransferStatus.InProgress,
-                TotalTracks = convertedTracks.Count,
-                PlaylistName = request.NewPlaylistName,
-                CreatedAt = startTime
-            };
+            _logger.LogInformation("Found {TrackCount} tracks in Spotify playlist: {PlaylistName}", 
+                convertedTracks.Count, playlistDetails.Name);
 
-            _context.TransferLogs.Add(transferLog);
-            await _context.SaveChangesAsync();
-
-            // Create YouTube playlist
             var youtubePlaylist = await _youtubeService.CreatePlaylistAsync(
                 request.NewPlaylistName,
                 request.PlaylistDescription,
                 request.MakePublic,
                 request.YouTubeAccessToken);
 
-            transferLog.YouTubePlaylistId = youtubePlaylist.Id;
-            transferLog.YouTubePlaylistUrl = _youtubeService.GetPlaylistUrl(youtubePlaylist.Id);
+            _logger.LogInformation("Created YouTube playlist: {PlaylistId}", youtubePlaylist.Id);
 
             var successfulTracks = 0;
             var failedTracks = new List<FailedTrackDto>();
 
-            // Transfer tracks
             foreach (var track in convertedTracks)
             {
                 try
@@ -122,6 +103,9 @@ public class TransferService : ITransferService
                             track.YouTubeVideoId = bestMatch.Id.VideoId;
                             track.IsMatched = true;
                             track.MatchConfidence = _youtubeService.CalculateMatchScore(track, bestMatch);
+                            
+                            _logger.LogDebug("Successfully added track: {TrackName} by {Artist}", 
+                                track.Name, string.Join(", ", track.Artists.Select(a => a.Name)));
                         }
                         else
                         {
@@ -133,7 +117,7 @@ public class TransferService : ITransferService
                         failedTracks.Add(CreateFailedTrack(track, "No suitable match found"));
                     }
 
-                    await UpdateTransferProgressAsync(transferId, successfulTracks + failedTracks.Count, successfulTracks, failedTracks.Count);
+                    await Task.Delay(500); // Rate limit protection
                 }
                 catch (Exception ex)
                 {
@@ -142,37 +126,19 @@ public class TransferService : ITransferService
                 }
             }
 
-            // Update final status
-            transferLog.Status = TransferStatus.Completed;
-            transferLog.CompletedAt = DateTime.UtcNow;
-            transferLog.Duration = transferLog.CompletedAt - transferLog.CreatedAt;
-            transferLog.SuccessfulTracks = successfulTracks;
-            transferLog.FailedTracks = failedTracks.Count;
-            
-            // Save failed tracks to database
-            if (failedTracks.Any())
-            {
-                transferLog.FailedTracksList = failedTracks.Select(ft => new FailedTrack
-                {
-                    TransferLogId = transferId,
-                    TrackName = ft.TrackName,
-                    Artist = ft.Artist,
-                    Album = ft.Album,
-                    FailureReason = ft.FailureReason,
-                    AttemptedAt = ft.AttemptedAt,
-                    SpotifyTrackId = ft.SpotifyTrackId
-                }).ToList();
-            }
+            var completedAt = DateTime.UtcNow;
+            var duration = completedAt - startTime;
 
-            await _context.SaveChangesAsync();
+            _logger.LogInformation("Transfer completed: {TransferId}. Success: {Success}/{Total}, Failed: {Failed}",
+                transferId, successfulTracks, convertedTracks.Count, failedTracks.Count);
 
             return new TransferResult
             {
                 Success = true,
                 TransferId = transferId,
-                Message = "Transfer completed",
+                Message = $"Transfer tamamlandı. {successfulTracks}/{convertedTracks.Count} şarkı başarıyla aktarıldı.",
                 YouTubePlaylistId = youtubePlaylist.Id,
-                YouTubePlaylistUrl = transferLog.YouTubePlaylistUrl,
+                YouTubePlaylistUrl = _youtubeService.GetPlaylistUrl(youtubePlaylist.Id),
                 Statistics = new TransferStatistics
                 {
                     TotalTracks = convertedTracks.Count,
@@ -181,149 +147,76 @@ public class TransferService : ITransferService
                     OriginalPlaylistName = playlistDetails.Name,
                     NewPlaylistName = request.NewPlaylistName,
                     StartedAt = startTime,
-                    CompletedAt = DateTime.UtcNow
+                    CompletedAt = completedAt
                 },
                 FailedTracks = failedTracks,
-                CompletedAt = DateTime.UtcNow,
-                Duration = DateTime.UtcNow - startTime,
+                CompletedAt = completedAt,
+                Duration = duration,
                 Status = TransferStatus.Completed
             };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during playlist transfer: {TransferId}", transferId);
-            
-            // Update transfer log with error
-            var transferLog = await _context.TransferLogs.FindAsync(transferId);
-            if (transferLog != null)
-            {
-                transferLog.Status = TransferStatus.Failed;
-                transferLog.ErrorMessage = ex.Message;
-                transferLog.CompletedAt = DateTime.UtcNow;
-                await _context.SaveChangesAsync();
-            }
 
             return new TransferResult
             {
                 Success = false,
                 TransferId = transferId,
-                Message = "Transfer failed",
+                Message = "Transfer başarısız oldu: " + ex.Message,
                 ErrorDetails = ex.Message,
-                Status = TransferStatus.Failed
+                Status = TransferStatus.Failed,
+                CompletedAt = DateTime.UtcNow,
+                Duration = DateTime.UtcNow - startTime
             };
         }
     }
 
     public async Task<TransferResult?> GetTransferStatusAsync(string transferId)
     {
-        var transferLog = await _context.TransferLogs.FindAsync(transferId);
-        if (transferLog == null) return null;
-
-        // Get failed tracks from database if transfer is completed
-        var failedTracks = new List<FailedTrackDto>();
-        if (transferLog.Status == TransferStatus.Completed && transferLog.FailedTracksList != null && transferLog.FailedTracksList.Any())
-        {
-            failedTracks = transferLog.FailedTracksList.Select(ft => new FailedTrackDto
-            {
-                TrackName = ft.TrackName,
-                Artist = ft.Artist,
-                Album = ft.Album,
-                FailureReason = ft.FailureReason,
-                AttemptedAt = ft.AttemptedAt,
-                SpotifyTrackId = ft.SpotifyTrackId
-            }).ToList();
-        }
-
-        return new TransferResult
-        {
-            Success = transferLog.Status == TransferStatus.Completed,
-            TransferId = transferLog.Id,
-            Status = transferLog.Status,
-            YouTubePlaylistId = transferLog.YouTubePlaylistId,
-            YouTubePlaylistUrl = transferLog.YouTubePlaylistUrl,
-            Statistics = new TransferStatistics
-            {
-                TotalTracks = transferLog.TotalTracks,
-                SuccessfulTracks = transferLog.SuccessfulTracks,
-                FailedTracks = transferLog.FailedTracks,
-                NewPlaylistName = transferLog.PlaylistName,
-                StartedAt = transferLog.CreatedAt,
-                CompletedAt = transferLog.CompletedAt
-            },
-            FailedTracks = failedTracks,
-            CompletedAt = transferLog.CompletedAt ?? DateTime.UtcNow,
-            Duration = transferLog.Duration ?? TimeSpan.Zero
-        };
+        await Task.CompletedTask;
+        return null;
     }
 
     public async Task<List<TransferLog>> GetTransferHistoryAsync(string userId, int page = 1, int pageSize = 10)
     {
-        return await _context.TransferLogs
-            .Where(t => t.UserId == userId)
-            .OrderByDescending(t => t.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
+        await Task.CompletedTask;
+        return new List<TransferLog>();
     }
 
     public async Task<bool> CancelTransferAsync(string transferId)
     {
-        var transferLog = await _context.TransferLogs.FindAsync(transferId);
-        if (transferLog == null || transferLog.Status != TransferStatus.InProgress)
-            return false;
-
-        transferLog.Status = TransferStatus.Cancelled;
-        transferLog.CompletedAt = DateTime.UtcNow;
-        await _context.SaveChangesAsync();
-        return true;
+        await Task.CompletedTask;
+        return false;
     }
 
     public async Task<TransferResult> RetryTransferAsync(string transferId, TransferRequest? newRequest = null)
     {
-        throw new NotImplementedException();
+        await Task.CompletedTask;
+        throw new NotImplementedException("Stateless service doesn't support retry. Please start a new transfer.");
     }
 
     public async Task<TransferStatistics> GetTransferStatisticsAsync(string? userId = null)
     {
-        var query = _context.TransferLogs.AsQueryable();
-        if (!string.IsNullOrEmpty(userId))
-        {
-            query = query.Where(t => t.UserId == userId);
-        }
-
-        var stats = await query
-            .GroupBy(t => 1)
-            .Select(g => new TransferStatistics
-            {
-                TotalTracks = g.Sum(t => t.TotalTracks),
-                SuccessfulTracks = g.Sum(t => t.SuccessfulTracks),
-                FailedTracks = g.Sum(t => t.FailedTracks)
-            })
-            .FirstOrDefaultAsync();
-
-        return stats ?? new TransferStatistics();
+        await Task.CompletedTask;
+        return new TransferStatistics();
     }
 
     public async Task<int> GetActiveTransferCountAsync()
     {
-        return await _context.TransferLogs
-            .CountAsync(t => t.Status == TransferStatus.InProgress);
+        await Task.CompletedTask;
+        return 0;
     }
 
     public async Task UpdateTransferProgressAsync(string transferId, int processedTracks, int successfulTracks, int failedTracks)
     {
-        var transferLog = await _context.TransferLogs.FindAsync(transferId);
-        if (transferLog != null)
-        {
-            transferLog.SuccessfulTracks = successfulTracks;
-            transferLog.FailedTracks = failedTracks;
-            await _context.SaveChangesAsync();
-        }
+        await Task.CompletedTask;
     }
 
     public async Task<TransferResult> RetryFailedTracksAsync(string transferId, string youtubeAccessToken)
     {
-        throw new NotImplementedException();
+        await Task.CompletedTask;
+        throw new NotImplementedException("Stateless service doesn't support retry. Please start a new transfer.");
     }
 
     private FailedTrackDto CreateFailedTrack(Track track, string reason)

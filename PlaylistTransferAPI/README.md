@@ -124,7 +124,7 @@ YouTube__ApiKey=your_youtube_api_key
 
 ### Tech Stack
 - **Backend**: ASP.NET Core 9.0
-- **Database**: SQLite (Entity Framework Core)
+- **Architecture**: Stateless API (No Database)
 - **Authentication**: OAuth 2.0 (Spotify & YouTube)
 - **Caching**: In-Memory Cache
 - **Logging**: Serilog

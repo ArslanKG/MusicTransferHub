@@ -1,5 +1,3 @@
-using Microsoft.EntityFrameworkCore;
-using PlaylistTransferAPI.Data;
 using PlaylistTransferAPI.Services;
 using PlaylistTransferAPI.Services.Interfaces;
 using Serilog;
@@ -7,7 +5,6 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Serilog
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
@@ -17,40 +14,30 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-// Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
-        Title = "Playlist Transfer API",
+        Title = "TuneSync - Playlist Transfer API",
         Version = "v1",
-        Description = "Spotify to YouTube Music Playlist Transfer API",
+        Description = "Spotify to YouTube Music Playlist Transfer API - Stateless & Simple",
         Contact = new Microsoft.OpenApi.Models.OpenApiContact
         {
-            Name = "Playlist Transfer API",
-            Email = "support@playlisttransfer.com"
+            Name = "Arslan Kemal Gündüz",
+            Url = new Uri("https://arkegu-portfolio.vercel.app/")
         }
     });
 });
 
-// Add Entity Framework
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-// Add Memory Cache
 builder.Services.AddMemoryCache();
-
-// Add HttpClient
 builder.Services.AddHttpClient();
 
-// Register Services
 builder.Services.AddScoped<ISpotifyService, SpotifyService>();
 builder.Services.AddScoped<IYouTubeService, YouTubeService>();
 builder.Services.AddScoped<ITransferService, TransferService>();
 
-// Add Session support
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -60,7 +47,6 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-// Add CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -71,7 +57,6 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Add Rate Limiting
 builder.Services.AddRateLimiter(options =>
 {
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
@@ -87,7 +72,6 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -114,50 +98,25 @@ else
     app.UseExceptionHandler("/error");
 }
 
-// Ensure database is created
-using (var scope = app.Services.CreateScope())
-{
-    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    try
-    {
-        context.Database.EnsureCreated();
-        Log.Information("Database initialized successfully");
-    }
-    catch (Exception ex)
-    {
-        Log.Error(ex, "Error initializing database");
-    }
-}
+Log.Information("Starting stateless playlist transfer service");
 
 app.UseSerilogRequestLogging();
 
-// Force HTTPS in production
 if (!app.Environment.IsDevelopment())
 {
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
-
 app.UseStaticFiles();
-
 app.UseCors("AllowAll");
-
 app.UseSession();
-
 app.UseRateLimiter();
-
 app.UseAuthorization();
-
 app.MapControllers();
 
-// Add error handling endpoint for production
 app.MapGet("/error", () => Results.Problem("An error occurred"));
-
-// Add health check
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
-
-// Add default route for frontend
 app.MapFallbackToFile("index.html");
 
 try
